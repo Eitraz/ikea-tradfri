@@ -7,6 +7,7 @@ import java.io.IOException;
 public final class DeviceFactory {
     private static final int DEVICE_TYPE_REMOTE = 0;
     private static final int DEVICE_TYPE_LIGHT = 2;
+    private static final int DEVICE_TYPE_MOTION_SENSOR = 4;
 
     private DeviceFactory() {
     }
@@ -32,6 +33,10 @@ public final class DeviceFactory {
         // Light
         else if (device.getType() == DEVICE_TYPE_LIGHT) {
             return (T) parseTypedLightDevice(json, parseDevice(json, Light.class));
+        }
+        // Motion sensor
+        else if (device.getType() == DEVICE_TYPE_MOTION_SENSOR) {
+            return (T) parseDevice(json, MotionSensor.class);
         }
         // Return device
         else {
