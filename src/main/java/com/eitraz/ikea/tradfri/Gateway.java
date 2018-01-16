@@ -4,6 +4,7 @@ import com.eitraz.ikea.tradfri.device.Device;
 import com.eitraz.ikea.tradfri.device.DeviceFactory;
 import com.eitraz.ikea.tradfri.device.DeviceFactoryException;
 import com.eitraz.ikea.tradfri.device.IdentifiableDevice;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
@@ -23,15 +24,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class IkeaTradfriGateway {
-    private static Logger logger = LoggerFactory.getLogger(IkeaTradfriGateway.class);
+public class Gateway {
+    private static Logger logger = LoggerFactory.getLogger(Gateway.class);
 
     public static final String DEVICES_PATH = "15001";
 
     private final String baseUri;
     private final DTLSConnector clientConnector;
 
-    public IkeaTradfriGateway(String host, int port, PskStore pskStore) {
+    public Gateway(String host, int port, PskStore pskStore) {
         baseUri = String.format("coaps://%s:%d", host, port);
 
         // Client configuration
@@ -71,24 +72,44 @@ public class IkeaTradfriGateway {
         }
     }
 
-    public List<IdentifiableDevice> getDevices() {
+    public List<IdentifiableDevice> getDeviceIds() {
         int[] identifiers = get(DEVICES_PATH, int[].class);
         return Arrays.stream(identifiers)
-                .mapToObj(IdentifiableDevice::create)
+                .mapToObj(id -> IdentifiableDevice.create(this, id))
                 .collect(Collectors.toList());
     }
 
-    public List<Device> getEnrichedDevices() {
-        return getDevices().stream()
+    public List<Device> getDevices() {
+        return getDeviceIds().stream()
                 .map(i -> (Device) getDevice(i))
                 .collect(Collectors.toList());
+    }
+
+    public <T extends Device> T getDevice(int id) {
+        return getDevice(IdentifiableDevice.create(this, id));
     }
 
     public <T extends Device> T getDevice(IdentifiableDevice device) {
         String json = get(device.getPath());
         try {
-            return DeviceFactory.createDevice(json);
+            return DeviceFactory.createDevice(this, json);
         } catch (DeviceFactoryException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void put(Resource resource) {
+        CoapClient client = createClient(resource.getPath());
+        String json = toJson(resource);
+        logger.info("PUT: " + client.getURI() + ": " + json);
+        CoapResponse response = client.put(json, MediaTypeRegistry.APPLICATION_JSON);
+        logger.info("Response: " + response.getResponseText());
+    }
+
+    private static String toJson(Resource resource) {
+        try {
+            return new ObjectMapper().writeValueAsString(resource);
+        } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }

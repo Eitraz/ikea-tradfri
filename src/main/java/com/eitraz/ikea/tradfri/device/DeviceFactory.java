@@ -1,5 +1,6 @@
 package com.eitraz.ikea.tradfri.device;
 
+import com.eitraz.ikea.tradfri.Gateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -12,31 +13,33 @@ public final class DeviceFactory {
     private DeviceFactory() {
     }
 
-    public static <T extends Device> T createDevice(String json) throws DeviceFactoryException {
-        return createTypedDevice(json, parseDevice(json, Device.class));
+    public static <T extends Device> T createDevice(Gateway gateway, String json) throws DeviceFactoryException {
+        return createTypedDevice(gateway, json, parseDevice(gateway, json, Device.class));
     }
 
-    private static <T extends Device> T parseDevice(String json, Class<T> type) throws DeviceFactoryException {
+    private static <T extends Device> T parseDevice(Gateway gateway, String json, Class<T> type) throws DeviceFactoryException {
         try {
-            return new ObjectMapper().readValue(json, type);
+            T t = new ObjectMapper().readValue(json, type);
+            t.setGateway(gateway);
+            return t;
         } catch (IOException e) {
             throw new DeviceFactoryException("Unable to parse device from JSON", e);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends Device> T createTypedDevice(String json, Device device) throws DeviceFactoryException {
+    private static <T extends Device> T createTypedDevice(Gateway gateway, String json, Device device) throws DeviceFactoryException {
         // Remote
         if (device.getType() == DEVICE_TYPE_REMOTE) {
-            return (T) parseDevice(json, Remote.class);
+            return (T) parseDevice(gateway, json, Remote.class);
         }
         // Light
         else if (device.getType() == DEVICE_TYPE_LIGHT) {
-            return (T) parseTypedLightDevice(json, parseDevice(json, Light.class));
+            return (T) parseTypedLightDevice(gateway, json, parseDevice(gateway, json, Light.class));
         }
         // Motion sensor
         else if (device.getType() == DEVICE_TYPE_MOTION_SENSOR) {
-            return (T) parseDevice(json, MotionSensor.class);
+            return (T) parseDevice(gateway, json, MotionSensor.class);
         }
         // Return device
         else {
@@ -45,10 +48,10 @@ public final class DeviceFactory {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends Light> T parseTypedLightDevice(String json, Light light) throws DeviceFactoryException {
+    private static <T extends Light> T parseTypedLightDevice(Gateway gateway, String json, Light light) throws DeviceFactoryException {
         // Dimmable
         if (light.isDimmable()) {
-            return (T) parseDevice(json, DimmableLight.class);
+            return (T) parseDevice(gateway, json, DimmableLight.class);
         }
         // Return light
         else {

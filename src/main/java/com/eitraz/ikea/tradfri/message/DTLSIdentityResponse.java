@@ -10,4 +10,12 @@ public class DTLSIdentityResponse {
 
     @JsonAlias("9029")
     private String version;
+
+    public String getSecureKey() {
+        return secureKey;
+    }
+
+    public String getVersion() {
+        return version;
+    }
 }
